@@ -4,6 +4,8 @@ import asyncio
 import datetime
 from dotenv import load_dotenv
 import os
+import json
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -11,15 +13,52 @@ load_dotenv()
 # Retrieve the bot token from environment variables
 bot_token = os.getenv('DISCORD_BOT_TOKEN')
 
-
 intents = discord.Intents.default()
+intents.guilds = True
 intents.guild_scheduled_events = True
 bot = commands.Bot(command_prefix='!', intents=intents)
+config_file = 'bot_config.json'
 
-# Replace with your guild ID, channel ID, and the Event Reminder role ID
-your_guild_id = int(os.getenv('DISCORD_GUILD_ID'))
-your_channel_id = int(os.getenv('DISCORD_CHANNEL_ID'))
-event_reminder_role_id = int(os.getenv('DISCORD_EVENT_REMINDER_ROLE_ID'))
+def load_config():
+    try:
+        with open(config_file, 'r') as file:
+            return json.load(file)
+    except FileNotFoundError:
+        return {}
+
+def save_config(config):
+    with open(config_file, 'w') as file:
+        json.dump(config, file, indent=4)
+
+@bot.command(name='setchannel')
+@commands.has_permissions(administrator=True)
+async def set_channel(ctx):
+    guild_id = str(ctx.guild.id)
+    config = load_config()
+    config[guild_id] = config.get(guild_id, {})
+    config[guild_id]['channel_id'] = ctx.channel.id
+    save_config(config)
+    await ctx.send(f"Channel set to {ctx.channel.name}")
+
+@bot.command(name='setrole')
+@commands.has_permissions(administrator=True)
+async def set_role(ctx, role: discord.Role):
+    guild_id = str(ctx.guild.id)
+    config = load_config()
+    config[guild_id] = config.get(guild_id, {})
+    config[guild_id]['role_id'] = role.id
+    save_config(config)
+    await ctx.send(f"Role set to {role.name}")
+
+@bot.command(name='showconfig')
+@commands.has_permissions(administrator=True)
+async def show_config(ctx):
+    guild_id = str(ctx.guild.id)
+    config = load_config()
+    guild_config = config.get(guild_id, {})
+    message = f"Channel ID: {guild_config.get('channel_id', 'Not Set')}\n"
+    message += f"Role ID: {guild_config.get('role_id', 'Not Set')}"
+    await ctx.send(message)
 
 
 # Dictionary to store event details and their reminder tasks
@@ -111,5 +150,4 @@ async def on_scheduled_event_user_remove(event, user):
     if role in member.roles:
         await member.remove_roles(role)
 
-bot.run('
-')
+bot.run(bot_token)
