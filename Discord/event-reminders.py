@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 import os
 import json
 
-
 # Load environment variables from .env file
 load_dotenv()
 
@@ -16,8 +15,8 @@ bot_token = os.getenv('DISCORD_BOT_TOKEN')
 intents = discord.Intents.default()
 intents.guilds = True
 intents.guild_scheduled_events = True
-intents.messages = True  # Ensure this is enabled to handle messages
-intents.message_content = True  # This is necessary for accessing message content
+intents.messages = True
+intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 config_file = 'bot_config.json'
@@ -33,84 +32,48 @@ def save_config(config):
     with open(config_file, 'w') as file:
         json.dump(config, file, indent=4)
 
+# Dictionary to store event details and their reminder tasks
+scheduled_events = {}
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
+        print(f'Connected to guild: {guild.name}')
         await retrieve_and_schedule_events(guild)
 
 async def retrieve_and_schedule_events(guild):
     events = await guild.fetch_scheduled_events()
     for event in events:
-        await schedule_reminder(event)
+        await schedule_reminder(guild.id, event)
 
-
-
-@bot.command(name='setchannel')
-@commands.has_permissions(administrator=True)
-async def set_channel(ctx):
-    guild_id = str(ctx.guild.id)
+async def send_reminder(guild_id, event):
     config = load_config()
-    config[guild_id] = config.get(guild_id, {})
-    config[guild_id]['channel_id'] = ctx.channel.id
-    save_config(config)
-    await ctx.send(f"Channel set to {ctx.channel.name}")
+    guild_config = config.get(str(guild_id), {})
+    channel_id = guild_config.get('channel_id')
+    role_id = guild_config.get('role_id')
+    
+    if channel_id and role_id:
+        channel = bot.get_channel(channel_id)
+        role_mention = f"<@&{role_id}>"
+        await channel.send(f"Reminder: The event '{event.name}' is starting soon! {role_mention}")
 
-@bot.command(name='setrole')
-@commands.has_permissions(administrator=True)
-async def set_role(ctx, role: discord.Role):
-    guild_id = str(ctx.guild.id)
-    config = load_config()
-    config[guild_id] = config.get(guild_id, {})
-    config[guild_id]['role_id'] = role.id
-    save_config(config)
-    await ctx.send(f"Role set to {role.name}")
-
-@bot.command(name='showconfig')
-@commands.has_permissions(administrator=True)
-async def show_config(ctx):
-    guild_id = str(ctx.guild.id)
-    config = load_config()
-    guild_config = config.get(guild_id, {})
-    message = f"Channel ID: {guild_config.get('channel_id', 'Not Set')}\n"
-    message += f"Role ID: {guild_config.get('role_id', 'Not Set')}"
-    await ctx.send(message)
-
-
-# Dictionary to store event details and their reminder tasks
-scheduled_events = {}
-
-async def send_reminder(event):
-    """
-    Send a reminder for the event.
-    """
-    channel = bot.get_channel(your_channel_id)
-    role_mention = f"<@&{event_reminder_role_id}>"
-    await channel.send(f"Reminder: The event '{event.name}' is starting soon! {role_mention}")
-
-async def schedule_reminder(event):
-    """
-    Schedule a reminder for the event.
-    """
-    event_id = event.id
+async def schedule_reminder(guild_id, event):
     event_start = event.scheduled_start_time
     reminder_time = event_start - datetime.timedelta(minutes=15)
     current_time = datetime.datetime.utcnow()
 
     if reminder_time > current_time:
         delay = (reminder_time - current_time).total_seconds()
-        task = bot.loop.create_task(send_reminder_after_delay(event_id, delay))
+        task = bot.loop.create_task(send_reminder_after_delay(guild_id, event.id, delay))
         # Store the task with the event
-        scheduled_events[event_id] = (event, task)
+        scheduled_events[event.id] = (event, task)
 
-async def send_reminder_after_delay(event_id, delay):
-    """
-    Wait for the specified delay and then send a reminder for the event.
-    """
+async def send_reminder_after_delay(guild_id, event_id, delay):
     await asyncio.sleep(delay)
     event, _ = scheduled_events.get(event_id, (None, None))
     if event:
-        await send_reminder(event)
+        await send_reminder(guild_id, event)
 
 
 
