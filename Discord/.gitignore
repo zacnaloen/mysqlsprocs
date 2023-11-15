@@ -87,4 +87,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
-DockerFile
+.DockerFile
