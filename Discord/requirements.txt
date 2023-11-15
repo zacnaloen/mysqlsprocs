@@ -3,3 +3,5 @@
  commands
  asyncio
  datetime
+ dotenv
+ os

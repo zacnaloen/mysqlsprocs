@@ -2,15 +2,25 @@ import discord
 from discord.ext import commands
 import asyncio
 import datetime
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Retrieve the bot token from environment variables
+bot_token = os.getenv('DISCORD_BOT_TOKEN')
+
 
 intents = discord.Intents.default()
 intents.guild_scheduled_events = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Replace with your guild ID, channel ID, and the Event Reminder role ID
-your_guild_id = 123456789
-your_channel_id = 987654321
-event_reminder_role_id = 1122334455
+your_guild_id = int(os.getenv('DISCORD_GUILD_ID'))
+your_channel_id = int(os.getenv('DISCORD_CHANNEL_ID'))
+event_reminder_role_id = int(os.getenv('DISCORD_EVENT_REMINDER_ROLE_ID'))
+
 
 # Dictionary to store event details and their reminder tasks
 scheduled_events = {}
@@ -101,4 +111,5 @@ async def on_scheduled_event_user_remove(event, user):
     if role in member.roles:
         await member.remove_roles(role)
 
-bot.run('MTE3NDMxOTAzNDcwODI3OTMzNg.GZA8Jc.hjURDpo1XMSL-0vwBSuKPx1bHNttWnaDNR18W4')
+bot.run('
+')
