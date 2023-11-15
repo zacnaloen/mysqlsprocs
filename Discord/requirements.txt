@@ -1,6 +1,0 @@
- discord.py
- pip
- asyncio
- datetime
- python-dotenv
- 
