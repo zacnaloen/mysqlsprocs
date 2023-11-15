@@ -21,6 +21,7 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 config_file = 'bot_config.json'
 
+
 def load_config():
     try:
         with open(config_file, 'r') as file:
@@ -35,12 +36,24 @@ def save_config(config):
 # Dictionary to store event details and their reminder tasks
 scheduled_events = {}
 
+
+
 @bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user.name}')
-    for guild in bot.guilds:
-        print(f'Connected to guild: {guild.name}')
-        await retrieve_and_schedule_events(guild)
+async def on_scheduled_event_create(event):
+    await schedule_reminder(event)
+
+async def schedule_reminder(event):
+    guild_id = event.guild.id  # Get the guild ID from the event
+    event_start = event.scheduled_start_time
+    reminder_time = event_start - datetime.timedelta(minutes=15)
+    current_time = datetime.datetime.utcnow()
+
+    if reminder_time > current_time:
+        delay = (reminder_time - current_time).total_seconds()
+        task = bot.loop.create_task(send_reminder_after_delay(guild_id, event.id, delay))
+        # Store the task with the event
+        scheduled_events[event.id] = (event, task)
+
 
 async def retrieve_and_schedule_events(guild):
     events = await guild.fetch_scheduled_events()
@@ -76,6 +89,40 @@ async def send_reminder_after_delay(guild_id, event_id, delay):
         await send_reminder(guild_id, event)
 
 
+@bot.command(name='setchannel')
+@commands.has_permissions(administrator=True)
+async def set_channel(ctx):
+    guild_id = str(ctx.guild.id)
+    config = load_config()
+    config[guild_id] = config.get(guild_id, {})
+    config[guild_id]['channel_id'] = ctx.channel.id
+    save_config(config)
+    await ctx.send(f"Channel set to {ctx.channel.name}")
+
+@bot.command(name='setrole')
+@commands.has_permissions(administrator=True)
+async def set_role(ctx, role: discord.Role):
+    try:
+        guild_id = str(ctx.guild.id)
+        config = load_config()
+        config[guild_id] = config.get(guild_id, {})
+        config[guild_id]['role_id'] = role.id
+        save_config(config)
+        await ctx.send(f"Role set to {role.name}")
+    except Exception as e:
+        await ctx.send(f"An error occurred: {e}")
+
+
+@bot.command(name='showconfig')
+@commands.has_permissions(administrator=True)
+async def show_config(ctx):
+    guild_id = str(ctx.guild.id)
+    config = load_config()
+    guild_config = config.get(guild_id, {})
+    message = f"Channel ID: {guild_config.get('channel_id', 'Not Set')}\n"
+    message += f"Role ID: {guild_config.get('role_id', 'Not Set')}"
+    await ctx.send(message)
+
 
 async def retrieve_and_schedule_events():
     guild = bot.get_guild(your_guild_id)
@@ -83,9 +130,7 @@ async def retrieve_and_schedule_events():
     for event in events:
         await schedule_reminder(event)
 
-@bot.event
-async def on_scheduled_event_create(event):
-    await schedule_reminder(event)
+
 
 @bot.event
 async def on_scheduled_event_update(before, after):
