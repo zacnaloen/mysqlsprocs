@@ -16,7 +16,10 @@ bot_token = os.getenv('DISCORD_BOT_TOKEN')
 intents = discord.Intents.default()
 intents.guilds = True
 intents.guild_scheduled_events = True
+intents.messages = True  # Ensure this is enabled to handle messages
+intents.message_content = True  # This is necessary for accessing message content
 bot = commands.Bot(command_prefix='!', intents=intents)
+
 config_file = 'bot_config.json'
 
 def load_config():
@@ -29,6 +32,15 @@ def load_config():
 def save_config(config):
     with open(config_file, 'w') as file:
         json.dump(config, file, indent=4)
+
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user.name}')
+    for guild in bot.guilds:
+        print(f'Connected to guild: {guild.name}')
+        # Perform actions specific to each guild
+
+
 
 @bot.command(name='setchannel')
 @commands.has_permissions(administrator=True)
@@ -96,10 +108,7 @@ async def send_reminder_after_delay(event_id, delay):
     if event:
         await send_reminder(event)
 
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user.name}')
-    await retrieve_and_schedule_events()
+
 
 async def retrieve_and_schedule_events():
     guild = bot.get_guild(your_guild_id)
@@ -149,5 +158,15 @@ async def on_scheduled_event_user_remove(event, user):
     member = guild.get_member(user.id)
     if role in member.roles:
         await member.remove_roles(role)
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.CommandNotFound):
+        await ctx.send('Command not found.')
+    elif isinstance(error, commands.MissingPermissions):
+        await ctx.send('You do not have the correct permissions to run this command.')
+    else:
+        await ctx.send('An error occurred: {}'.format(str(error)))
+
+
 
 bot.run(bot_token)
