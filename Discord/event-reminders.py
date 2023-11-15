@@ -37,8 +37,12 @@ def save_config(config):
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
-        print(f'Connected to guild: {guild.name}')
-        # Perform actions specific to each guild
+        await retrieve_and_schedule_events(guild)
+
+async def retrieve_and_schedule_events(guild):
+    events = await guild.fetch_scheduled_events()
+    for event in events:
+        await schedule_reminder(event)
 
 
 
