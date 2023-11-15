@@ -1,7 +1,6 @@
- discord
- discord.ext 
- commands
+ discord.py
+ pip
  asyncio
  datetime
- dotenv
- os
+ python-dotenv
+ 
